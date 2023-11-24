@@ -3,6 +3,10 @@ from os.path import join
 import os
 import glob
 from PIL import Image
+import re
+
+def natural_sort_key(s):
+    return [int(text) if text.isdigit() else text.lower() for text in re.split('([0-9]+)', s)]
 
 def all_img_collecter(file_path):
     file_types = ['jpg', 'png', 'jpeg']
@@ -13,7 +17,8 @@ def all_img_collecter(file_path):
 def display_images(directory):
     images = all_img_collecter(directory)
     
-    images = sorted(images)
+    images = sorted(images, key=natural_sort_key)
+    print(images)
     # Display images in a 2x2 grid
     for i in range(0, len(images), 2):
         row = images[i:i+2]
@@ -22,14 +27,16 @@ def display_images(directory):
         with col1:
             if i < len(images):
                 image_path = row[0]
-                img_cap = image_path.split('/')[-1].split('.')[0]
-                st.image(Image.open(image_path),caption=f"image_{img_cap}", use_column_width=True)
+                img_cap = int(image_path.split('/')[-1].split('.')[0]) + 1 
+                st.write(f"### {img_cap} 번")
+                st.image(Image.open(image_path), use_column_width=True)
 
         with col2:
             if i + 1 < len(images):
                 image_path = row[1]
-                img_cap = image_path.split('/')[-1].split('.')[0]
-                st.image(Image.open(image_path),caption=f"image_{img_cap}", use_column_width=True)
+                img_cap = int(image_path.split('/')[-1].split('.')[0]) + 1 
+                st.write(f"### {img_cap} 번")
+                st.image(Image.open(image_path), use_column_width=True)
 
 # Define the image directory
 img_data = "./img_data"  # Replace with the actual path
