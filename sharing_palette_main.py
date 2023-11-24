@@ -16,10 +16,14 @@ def all_img_collecter(file_path):
 # Function to load and display images in a grid
 def display_images(selected_directory):
     selected_directory_path = join(img_data, selected_directory)
+    raw_imgs = all_img_collecter(img_data+"/raw_face")
+    st.write("## Before 이미지")
+    st.image(Image.open(raw_imgs[0]), width=300)
     images = all_img_collecter(selected_directory_path)
-    
+    st.write(f"# {selected_directory}")
     images = sorted(images, key=natural_sort_key)
     if selected_directory == 'checco_ver_1_snap':
+        st.write("\n\n")
         st.write("#### ※ 추가 결제시 받을 수 있는 팔레트입니다.")
     # Display images in a 2x2 grid
     for i in range(0, len(images), 2):
@@ -49,7 +53,7 @@ img_data = "./img_data"  # Replace with the actual path
 st.title("Checco Palette Viewer")
 
 # Selectbox to choose the image directory
-selected_directory = st.selectbox("확인할 팔레트를 선택해주세요.", ["checco_ver_1_snap", "night_snap", "christmas_snap", "tennis_snap"])
+selected_directory = st.selectbox("확인할 팔레트를 선택해주세요.", ["christmas_snap", "night_snap", "tennis_snap", "checco_ver_1_snap"])
 
 # Radio button to choose image source
 image_source = st.radio("원본을 고를지, 적용된 이미지(이효리)를 고를지 선택해주세요.", ["checco_model", "이효리", "中条あやみ"])
@@ -64,7 +68,7 @@ elif image_source == "checco_model":
     
 # Display images based on the selected directory
 
-st.write(f"# {selected_directory}")
+
 
 display_images(selected_directory)
 
