@@ -14,11 +14,13 @@ def all_img_collecter(file_path):
     return files       
 
 # Function to load and display images in a grid
-def display_images(directory):
-    images = all_img_collecter(directory)
+def display_images(selected_directory):
+    selected_directory_path = join(img_data, selected_directory)
+    images = all_img_collecter(selected_directory_path)
     
     images = sorted(images, key=natural_sort_key)
-    print(images)
+    if selected_directory == 'checco_ver_1_snap':
+        st.write("#### ※ 추가 결제시 받을 수 있는 팔레트입니다.")
     # Display images in a 2x2 grid
     for i in range(0, len(images), 2):
         row = images[i:i+2]
@@ -28,14 +30,16 @@ def display_images(directory):
             if i < len(images):
                 image_path = row[0]
                 img_cap = int(image_path.split('/')[-1].split('.')[0]) + 1 
-                st.write(f"### {img_cap} 번")
+                if selected_directory != 'checco_ver_1_snap':
+                    st.write(f"### {img_cap} 번")
                 st.image(Image.open(image_path), use_column_width=True)
 
         with col2:
             if i + 1 < len(images):
                 image_path = row[1]
                 img_cap = int(image_path.split('/')[-1].split('.')[0]) + 1 
-                st.write(f"### {img_cap} 번")
+                if selected_directory != 'checco_ver_1_snap':
+                    st.write(f"### {img_cap} 번")
                 st.image(Image.open(image_path), use_column_width=True)
 
 # Define the image directory
@@ -59,7 +63,8 @@ elif image_source == "checco_model":
     img_data = join(img_data, 'checco_model_data')
     
 # Display images based on the selected directory
-selected_directory_path = join(img_data, selected_directory)
+
 st.write(f"# {selected_directory}")
-display_images(selected_directory_path)
+
+display_images(selected_directory)
 
