@@ -63,7 +63,7 @@ dir_dict = {'MOONLIGHT': 'night_snap_retouched',
 selected_directory = dir_dict.get(selected_palette)
 
 # Radio button to choose image source
-image_source = st.radio("원본을 고를지, 적용된 이미지(이효리)를 고를지 선택해주세요.", ["中条あやみ", "이효리", "checco Model 1", "checco Model 2", "checco Model 3"])
+image_source = st.radio("원본을 고를지, 적용된 이미지(이효리)를 고를지 선택해주세요.", ["中条あやみ", "이효리", "checco Model 1", "checco Model 2"])
 
 # Set image directory based on the selected source
 if image_source == "이효리":
