@@ -53,22 +53,31 @@ img_data = "./img_data"  # Replace with the actual path
 st.title("Checco Palette Viewer")
 
 # Selectbox to choose the image directory
-selected_directory = st.selectbox("확인할 팔레트를 선택해주세요.", ["christmas_snap", "night_snap", "tennis_snap", "checco_ver_1_snap"])
+selected_palette = st.selectbox("확인할 팔레트를 선택해주세요.", ["MOONLIGHT", "CHRISTMAS", "TENNIS", "FOUR SEASONS"])
+
+dir_dict = {'MOONLIGHT': 'night_snap_retouched',
+            'CHRISTMAS': 'christmas_snap_retouched',
+            'TENNIS': 'tennis_snap_retouched',
+            'FOUR SEASONS': 'phase_1'}
+
+selected_directory = dir_dict.get(selected_palette)
 
 # Radio button to choose image source
-image_source = st.radio("원본을 고를지, 적용된 이미지(이효리)를 고를지 선택해주세요.", ["checco_model", "이효리", "中条あやみ"])
+image_source = st.radio("원본을 고를지, 적용된 이미지(이효리)를 고를지 선택해주세요.", ["中条あやみ", "이효리", "checco Model 1", "checco Model 2", "checco Model 3"])
 
 # Set image directory based on the selected source
 if image_source == "이효리":
-    img_data = join(img_data, 'hyori_data')
+    img_data = join(img_data, 'hyoree_1_test_result')
 elif image_source == "中条あやみ":
     img_data = join(img_data, '中条あやみ_data')
-elif image_source == "checco_model":
-    img_data = join(img_data, 'checco_model_data')
-    
+elif image_source == "checco Model 1":
+    img_data = join(img_data, 'checco_model_1_data')
+elif image_source == "checco Model 2":
+    img_data = join(img_data, 'ai_model_short_test_result')
+# elif image_source == "checco Model 3":
+#     img_data = join(img_data, 'ai_model_D_test_result')
 # Display images based on the selected directory
 
 
 
 display_images(selected_directory)
-
