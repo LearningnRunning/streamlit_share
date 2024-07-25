@@ -3,11 +3,11 @@ import pandas as pd
 from glob import glob
 import os
 
-current_directory = os.getcwd()
-print("현재 위치:", current_directory)
+
         
 NOW_PATH = os.getcwd()
 STATIC_DATA_PATH = './data'
+
 def find_rows(df, find_key):
     result_df = df[df['SeparatedSentences'].str.contains(find_key, case=False, na=False)]
     if not result_df.empty:
@@ -30,7 +30,6 @@ file_list = glob(os.path.join(NOW_PATH, STATIC_DATA_PATH, '*.csv'))
 
 df_dict = load_data(file_list)
 
-st.text( list(df_dict.keys()))
 # 파일 선택 위젯 (파일 이름만 표시)
 selected_file_name = st.selectbox('CSV 파일을 선택하세요:', list(df_dict.keys()))
 if selected_file_name:
@@ -52,7 +51,7 @@ if selected_file_name:
             result = find_rows(selected_df, search_term)
             if not result.empty:
                 st.write('검색 결과:')
-                st.dataframe(result.loc[:,['SeparatedSentences']])
+                st.data_editor(result, use_container_width=True)
             else:
                 st.write('검색 결과가 없습니다.')
         else:
