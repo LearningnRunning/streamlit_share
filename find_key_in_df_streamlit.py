@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 from glob import glob
 import os
+import re
 
 
         
@@ -18,8 +19,16 @@ def find_rows(df, find_key):
 # 선택된 파일 불러오기
 @st.cache_data
 def load_data(file_list):
+    # 파일 이름에서 국가명을 추출하는 함수
+    def extract_country(filename):
+        # 정규표현식을 사용하여 국가명 추출
+        match = re.search(r'_(japan|korea|american|china)_', filename, re.IGNORECASE)
+        if match:
+            return match.group(1).capitalize()
+        return 'Unknown'  # 국가명을 찾지 못한 경우
+
     # 파일 이름과 경로를 매칭하는 딕셔너리 생성
-    file_dict = {os.path.basename(file): pd.read_csv(file) for file in file_list}
+    file_dict = {extract_country(os.path.basename(file)): pd.read_csv(file) for file in file_list}
     return file_dict
 
 # Streamlit 앱 시작
@@ -37,9 +46,6 @@ if selected_file_name:
     selected_df = df_dict[selected_file_name]
 
 
-
-    # 데이터프레임 표시
-    st.write(f"선택된 파일: {selected_file_name}")
     # st.dataframe(df.head())
 
     # 검색어 입력
