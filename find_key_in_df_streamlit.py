@@ -7,7 +7,7 @@ import re
 
 NOW_PATH = os.getcwd()
 STATIC_DATA_PATH = './data'
-STATIC_PATH = './data/modulab_phase_2'
+
 
 def find_rows(df, find_key):
     result_df = df[df['SeparatedSentences'].str.contains(find_key, case=False, na=False)]
@@ -32,10 +32,30 @@ def load_word2vec(model_file_path):
     model = Word2Vec.load(model_file_path)
     return model
 
-st.sidebar.title('메뉴 선택')
-app_mode = st.sidebar.radio('모드를 선택하세요:', ['Keyword가 포함된 문장 찾기', 'Keyword 연관 단어 찾기'])
+@st.cache_data
+def load_excel(file_path):
+    return pd.read_excel(file_path, sheet_name=None)
 
-if app_mode == 'Keyword가 포함된 문장 찾기':
+excel_path = os.path.join(STATIC_DATA_PATH, 'country_keyword_frequency.xlsx')
+sheets = load_excel(excel_path)
+
+st.sidebar.title('메뉴 선택')
+app_mode = st.sidebar.radio('모드를 선택하세요:', ['국가별 Keyword 빈도수', 'Keyword가 포함된 문장 찾기', 'Keyword 연관 단어 찾기'])
+
+if app_mode == '국가별 Keyword 빈도수':
+    st.title('국가별 Keyword 빈도수')
+    sheet_names = ['북미', '일본', '중국', '한국']
+    selected_sheet = st.selectbox('국가를 선택하세요:', sheet_names)
+    word_cloud_image_path = os.path.join(STATIC_DATA_PATH, 'wordclouds', f'{selected_sheet}.png')
+    if selected_sheet in sheets:
+        st.image(word_cloud_image_path)
+        df = sheets[selected_sheet]
+        st.write(f'{selected_sheet} 키워드 빈도수:')
+        st.dataframe(df)
+    else:
+        st.write(f'{selected_sheet} 시트를 찾을 수 없습니다.')
+        
+elif app_mode == 'Keyword가 포함된 문장 찾기':
     st.title('Keyword가 포함된 문장 찾기')
 
     file_list = glob(os.path.join(NOW_PATH, STATIC_DATA_PATH, '*.csv'))
@@ -78,3 +98,4 @@ elif app_mode == 'Keyword 연관 단어 찾기':
                 st.write('입력한 키워드가 모델에 없습니다. 다른 키워드를 시도해보세요.')
         else:
             st.write('키워드를 입력해주세요.')
+
