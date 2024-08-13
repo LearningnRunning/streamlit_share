@@ -1,13 +1,13 @@
 import streamlit as st
+from gensim.models import Word2Vec
 import pandas as pd
 from glob import glob
 import os
 import re
 
-
-        
 NOW_PATH = os.getcwd()
 STATIC_DATA_PATH = './data'
+STATIC_PATH = './data/modulab_phase_2'
 
 def find_rows(df, find_key):
     result_df = df[df['SeparatedSentences'].str.contains(find_key, case=False, na=False)]
@@ -16,49 +16,65 @@ def find_rows(df, find_key):
     else:
         return pd.DataFrame()
 
-# 선택된 파일 불러오기
 @st.cache_data
-def load_data(file_list):
-    # 파일 이름에서 국가명을 추출하는 함수
+def load_csv(file_list):
     def extract_country(filename):
-        # 정규표현식을 사용하여 국가명 추출
         match = re.search(r'_(japan|korea|american|china)_', filename, re.IGNORECASE)
         if match:
             return match.group(1).capitalize()
-        return 'Unknown'  # 국가명을 찾지 못한 경우
-
-    # 파일 이름과 경로를 매칭하는 딕셔너리 생성
+        return 'Unknown'
+    
     file_dict = {extract_country(os.path.basename(file)): pd.read_csv(file) for file in file_list}
     return file_dict
 
-# Streamlit 앱 시작
-st.title('CSV 파일 검색 앱')
+@st.cache_data
+def load_word2vec(model_file_path):
+    model = Word2Vec.load(model_file_path)
+    return model
 
-file_list = glob(os.path.join(NOW_PATH, STATIC_DATA_PATH, '*.csv'))
+st.sidebar.title('메뉴 선택')
+app_mode = st.sidebar.radio('모드를 선택하세요:', ['Keyword가 포함된 문장 찾기', 'Keyword 연관 단어 찾기'])
 
+if app_mode == 'Keyword가 포함된 문장 찾기':
+    st.title('Keyword가 포함된 문장 찾기')
 
-df_dict = load_data(file_list)
+    file_list = glob(os.path.join(NOW_PATH, STATIC_DATA_PATH, '*.csv'))
+    df_dict = load_csv(file_list)
 
-# 파일 선택 위젯 (파일 이름만 표시)
-selected_file_name = st.selectbox('CSV 파일을 선택하세요:', list(df_dict.keys()))
-if selected_file_name:
-    # 선택된 파일의 전체 경로 가져오기
-    selected_df = df_dict[selected_file_name]
+    selected_file_name = st.selectbox('CSV 파일을 선택하세요:', list(df_dict.keys()))
+    if selected_file_name:
+        selected_df = df_dict[selected_file_name]
 
+        search_term = st.text_input('검색어를 입력하세요:')
 
-    # st.dataframe(df.head())
-
-    # 검색어 입력
-    search_term = st.text_input('검색어를 입력하세요:')
-
-    # 검색 버튼
-    if st.button('검색'):
-        if search_term:
-            result = find_rows(selected_df, search_term)
-            if not result.empty:
-                st.write('검색 결과:')
-                st.data_editor(result, use_container_width=True)
+        if st.button('검색'):
+            if search_term:
+                result = find_rows(selected_df, search_term)
+                if not result.empty:
+                    st.write('검색 결과:')
+                    st.data_editor(result, use_container_width=True)
+                else:
+                    st.write('검색 결과가 없습니다.')
             else:
-                st.write('검색 결과가 없습니다.')
+                st.write('검색어를 입력해주세요.')
+
+elif app_mode == 'Keyword 연관 단어 찾기':
+    st.title('Keyword 연관 단어 찾기')
+
+    china_word2vec_model_file_path = os.path.join(STATIC_DATA_PATH, 'china', 'intern_china_word2vec_model')
+    vec_model = load_word2vec(china_word2vec_model_file_path)
+
+    key_word = st.text_input('키워드를 입력하세요:')
+    top_num = st.slider(label='연관 단어 수', min_value=1, max_value=100, value=5)
+
+    if st.button('연관 단어 찾기'):
+        if key_word:
+            try:
+                relevant_keywords = vec_model.wv.most_similar(key_word, topn=top_num)
+                st.write('연관 단어:')
+                for word, similarity in relevant_keywords:
+                    st.write(f"{word}: {similarity:.4f}")
+            except KeyError:
+                st.write('입력한 키워드가 모델에 없습니다. 다른 키워드를 시도해보세요.')
         else:
-            st.write('검색어를 입력해주세요.')
+            st.write('키워드를 입력해주세요.')
