@@ -44,7 +44,7 @@ combined_absentees['색상'] = combined_absentees.apply(assign_color, axis=1)
 combined_absentees['지역그룹'] = combined_absentees['지역'].str.split(' ').str[0]
 
 # 시각화 순서 정렬: 두 안건 모두 불참한 의원이 먼저 오도록
-combined_absentees = combined_absentees.sort_values(by='중복여부', ascending=False)
+combined_absentees = combined_absentees.sort_values(by=['중복여부', '의원명'], ascending=[False, True])
 
 # Streamlit 앱
 st.title("국회의원 불참석 현황")
@@ -65,6 +65,9 @@ regions = combined_absentees['지역그룹'].unique()
 for region in regions:
     st.subheader(f"{region} 지역 의원")
     regional_data = combined_absentees[combined_absentees['지역그룹'] == region]
+
+    # 지역구 내에서 의원명을 가나다 순으로 정렬
+    regional_data = regional_data.sort_values(by='의원명')
 
     def display_grid(data):
         cols = st.columns(3)  # 3열 그리드
