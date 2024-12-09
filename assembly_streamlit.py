@@ -3,8 +3,8 @@ import pandas as pd
 import json
 
 # 데이터 파일 경로
-json_file_path = "/Users/seongrok.kim/Github/streamlit_share/data/national_assembply_index.json"
-excel_file_path = "/Users/seongrok.kim/Github/streamlit_share/data/national_assembly_list.xlsx"
+json_file_path = "./data/national_assembply_index.json"
+excel_file_path = "./data/national_assembly_list.xlsx"
 
 # JSON 데이터 불러오기
 with open(json_file_path, "r", encoding="utf-8") as json_file:
