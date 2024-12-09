@@ -2,25 +2,34 @@ import streamlit as st
 import pandas as pd
 import json
 
-# 데이터 파일 경로
-json_file_path = "./data/national_assembply_index.json"
-excel_file_path = "./data/national_assembly_list.xlsx"
+# 페이지 설정 및 로고 표시
+st.set_page_config(page_title="불참의힘", page_icon="./data/image/stop_icon.png")
 
-# JSON 데이터 불러오기
-with open(json_file_path, "r", encoding="utf-8") as json_file:
-    absent_data = json.load(json_file)
+st.logo("./data/image/stop_icon.png")
 
+# @st.cache_data 적용: JSON 데이터 불러오기
+@st.cache_data
+def load_json_data():
+    with open("./data/national_assembply_index.json", "r", encoding="utf-8") as json_file:
+        return json.load(json_file)
+
+# @st.cache_data 적용: Excel 데이터 불러오기
+@st.cache_data
+def load_excel_data():
+    return pd.read_excel("./data/national_assembly_list.xlsx", sheet_name='excel')
+
+# 데이터 로드
+absent_data = load_json_data()
+election_results_df = load_excel_data()
+
+# 필터링: 번호로 데이터 추출
 lifting_martial_law_absent_index = absent_data["lifting_martial_law_absent_index"]
 impeachment_absent_index = absent_data["impeachment_absent_index"]
 
-# Excel 데이터 불러오기
-election_results_df = pd.read_excel(excel_file_path, sheet_name='excel')
-
-# 필터링: 번호로 데이터 추출
 lifting_absentees = election_results_df[election_results_df['번호'].isin(lifting_martial_law_absent_index)]
 impeachment_absentees = election_results_df[election_results_df['번호'].isin(impeachment_absent_index)]
 
-# 탄핵소추안 및 비상계엄령 해제 요구안 데이터를 통합
+# 불참 유형 추가
 lifting_absentees['불참유형'] = '비상계엄령 해제 요구안'
 impeachment_absentees['불참유형'] = '탄핵소추안'
 
@@ -43,47 +52,66 @@ combined_absentees['색상'] = combined_absentees.apply(assign_color, axis=1)
 # 지역별로 첫 단어 추출
 combined_absentees['지역그룹'] = combined_absentees['지역'].str.split(' ').str[0]
 
-# 시각화 순서 정렬: 두 안건 모두 불참한 의원이 먼저 오도록
-combined_absentees = combined_absentees.sort_values(by=['중복여부', '의원명'], ascending=[False, True])
+# 비례대표 처리: 비례대표만 남기기
+combined_absentees['비례대표여부'] = combined_absentees['지역'].str.contains('비례대표')
+
+# 지역 순서 지정
+region_order = ["서울", "인천", "경기", "충북", "충남", "강원", "경북", "대구", "울산", "경남", "부산", "비례대표"]
+combined_absentees['지역순서'] = combined_absentees['지역그룹'].apply(
+    lambda x: region_order.index(x) if x in region_order else len(region_order)
+)
+
+# 시각화 순서 정렬
+combined_absentees = combined_absentees.sort_values(by=['지역순서', '중복여부', '의원명'], ascending=[True, False, True])
+combined_absentees.drop_duplicates(subset=['번호'], inplace=True)
 
 # Streamlit 앱
-st.title("국회의원 불참석 현황")
+st.title("불참의힘, 바로 잡아 내겠습니다.")
+
 st.markdown(
     """
-    ### 색상 설명
-    - <span style="color:#E61D2B"> **비상계엄령 해제 요구안 + 탄핵소추안 불참**</span>: **#E61D2B (PANTONE 1795 C)**  
-    - <span style="color:#EE564A"> **탄핵소추안 불참**</span>: **#EE564A (연한 빨강)**  
-    - <span style="color:#EDB19D"> **비상계엄령 해제 요구안 불참**</span>: **#EDB19D (연한 살구색)**  
+    - <span style="color:#E61D2B"> **비상계엄령 해제 요구안 + 탄핵소추안 불참**</span>
+    - <span style="color:#EE564A"> **탄핵소추안 불참**</span>
+    - <span style="color:#EDB19D"> **비상계엄령 해제 요구안 불참**</span>
     """,
     unsafe_allow_html=True,
 )
 
-# 지역별로 데이터 그룹화
+# 검색 필터링
+search_term = st.text_input("궁금한 의원명 또는 지역구명을 입력해 보세요").strip()
+
+if search_term:
+    combined_absentees = combined_absentees[
+        combined_absentees['의원명'].str.contains(search_term, case=False, na=False) |
+        combined_absentees['지역'].str.contains(search_term, case=False, na=False)
+    ]
+
+# 지역별 데이터를 3열로 표시
 regions = combined_absentees['지역그룹'].unique()
 
-# 지역별 데이터를 그리드로 표시
-for region in regions:
-    st.subheader(f"{region} 지역 의원")
+for region in region_order:
     regional_data = combined_absentees[combined_absentees['지역그룹'] == region]
 
-    # 지역구 내에서 의원명을 가나다 순으로 정렬
-    regional_data = regional_data.sort_values(by='의원명')
+    if region == "비례대표":
+        regional_data = regional_data[regional_data['비례대표여부']]  # 비례대표만 표시
 
-    def display_grid(data):
-        cols = st.columns(3)  # 3열 그리드
-        for i, row in data.iterrows():
-            # 불참유형 표시 여부 결정
-            additional_info = f"<em>{row['불참유형']}</em>" if not row['중복여부'] else ""
-            st.markdown(
-                f"""
-                <div style="padding:10px; background-color:{row['색상']}; border-radius:5px; margin-bottom:10px; color:white;">
-                    <strong>{row['의원명']}</strong><br>
-                    {row['지역']}<br>
-                    {additional_info}
-                </div>
-                """,
-                unsafe_allow_html=True,
-            )
+    if not regional_data.empty:
+        st.subheader(f"{region} 지역 의원")
+        regional_data = regional_data.sort_values(by='의원명')  # 지역구 내 정렬
 
-    # 해당 지역의 데이터를 그리드 형식으로 표시
-    display_grid(regional_data)
+        # 데이터를 3열로 나누어 표시
+        cols = st.columns(3)
+        for idx, row in enumerate(regional_data.itertuples()):
+            col = cols[idx % 3]  # 3열로 순환
+            with col:
+                additional_info = f"<em>{row.불참유형}</em>" if not row.중복여부 else ""
+                st.markdown(
+                    f"""
+                    <div style="padding:10px; background-color:{row.색상}; border-radius:5px; margin-bottom:10px; color:white;">
+                        <strong>{row.의원명}</strong><br>
+                        {row.지역}<br>
+                        {additional_info}
+                    </div>
+                    """,
+                    unsafe_allow_html=True,
+                )
