@@ -30,9 +30,15 @@ combined_absentees = pd.concat([lifting_absentees, impeachment_absentees])
 combined_absentees['중복여부'] = combined_absentees.duplicated(subset=['의원명'], keep=False)
 
 # 색상 구분
-combined_absentees['색상'] = combined_absentees['중복여부'].apply(
-    lambda x: "#E61D2B" if x else "#EE564A"  # 비상계엄령 해제 + 탄핵: 진한 빨강, 비상계엄령 해제만: 연한 빨강
-)
+def assign_color(row):
+    if row['중복여부']:
+        return "#E61D2B"  # 두 안건 모두 불참: 진한 빨강
+    elif row['불참유형'] == '탄핵소추안':
+        return "#EE564A"  # 탄핵소추안만 불참: 연한 빨강
+    elif row['불참유형'] == '비상계엄령 해제 요구안':
+        return "#EDB19D"  # 비상계엄령 해제 요구안만 불참: 연한 살구색
+
+combined_absentees['색상'] = combined_absentees.apply(assign_color, axis=1)
 
 # 지역별로 첫 단어 추출
 combined_absentees['지역그룹'] = combined_absentees['지역'].str.split(' ').str[0]
@@ -45,8 +51,9 @@ st.title("국회의원 불참석 현황")
 st.markdown(
     """
     ### 색상 설명
-    - <span style="color:#E61D2B">🟥 **비상계엄령 해제 요구안 + 탄핵소추안 불참**</span>: **#E61D2B (PANTONE 1795 C)**  
-    - <span style="color:#EE564A">🟧 **비상계엄령 해제 요구안 불참**</span>: **#EE564A (80% PANTONE 2348 C)**  
+    - <span style="color:#E61D2B"> **비상계엄령 해제 요구안 + 탄핵소추안 불참**</span>: **#E61D2B (PANTONE 1795 C)**  
+    - <span style="color:#EE564A"> **탄핵소추안 불참**</span>: **#EE564A (연한 빨강)**  
+    - <span style="color:#EDB19D"> **비상계엄령 해제 요구안 불참**</span>: **#EDB19D (연한 살구색)**  
     """,
     unsafe_allow_html=True,
 )
