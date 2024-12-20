@@ -2,6 +2,7 @@ streamlit
 numpy
 Pillow
 extcolors
+onnxruntime
 scipy
 rembg
 opencv-python
