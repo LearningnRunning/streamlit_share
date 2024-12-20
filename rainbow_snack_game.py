@@ -7,40 +7,117 @@ import io
 from rembg import remove
 
 
+def rgb_to_hsv(r, g, b):
+    r, g, b = r / 255.0, g / 255.0, b / 255.0
+    mx = max(r, g, b)
+    mn = min(r, g, b)
+    df = mx - mn
+    if mx == mn:
+        h = 0
+    elif mx == r:
+        h = (60 * ((g - b) / df) + 360) % 360
+    elif mx == g:
+        h = (60 * ((b - r) / df) + 120) % 360
+    else:
+        h = (60 * ((r - g) / df) + 240) % 360
+    s = 0 if mx == 0 else (df / mx) * 100
+    v = mx * 100
+    return h, s, v
+
+
 def get_closest_rainbow_color(rgb):
-    # 무지개 색상 정의 (RGB) - 색상 범위 수정
+    # 무지개 색상 정의
     rainbow_colors = {
-        "빨간색": [(255, 0, 0), (180, 0, 0)],  # 빨간색 계열
-        "주황색": [(255, 165, 0), (255, 140, 0)],  # 주황색 계열
-        "노란색": [(255, 255, 0), (142, 122, 35)],  # 노란색 계열
-        "초록색": [(0, 255, 0), (0, 180, 0)],  # 초록색 계열
-        "파란색": [(0, 0, 255), (0, 0, 180)],  # 파란색 계열
-        "남색": [(75, 0, 130), (60, 0, 110)],  # 남색 계열
-        "보라색": [(128, 0, 128), (100, 0, 100)],  # 보라색 계열
+        "빨간색": [
+            (255, 0, 0),
+            (180, 0, 0),
+            (255, 192, 203),
+            (249, 218, 223),
+            (254, 138, 137),
+            (255, 35, 0),
+            (208, 6, 0),
+            (114, 47, 56),
+            (255, 10, 0),
+            (218, 5, 44),
+            (151, 2, 25),
+            (126, 2, 1),
+        ],
+        "주황색": [
+            (255, 165, 0),
+            (255, 140, 0),
+            (228, 61, 5),
+            (229, 84, 7),
+            (240, 111, 11),
+            (240, 111, 11),
+        ],
+        "노란색": [
+            (255, 255, 0),
+            (142, 122, 35),
+            (247, 228, 0),
+            (247, 247, 153),
+            (246, 247, 1),
+            (246, 247, 1),
+        ],
+        "초록색": [
+            (0, 255, 0),
+            (0, 180, 0),
+            (143, 192, 3),
+            (42, 140, 68),
+            (42, 140, 68),
+            (42, 140, 68),
+            (42, 140, 68),
+        ],
+        "파란색": [
+            (0, 0, 255),
+            (0, 0, 180),
+            (167, 198, 247),
+            (141, 180, 247),
+            (118, 165, 248),
+            (97, 154, 247),
+            (63, 132, 246),
+            (14, 2, 238),
+            (1, 168, 232),
+            (57, 61, 237),
+        ],
+        "남색": [
+            (75, 0, 130),
+            (60, 0, 110),
+            (19, 32, 88),
+            (20, 33, 87),
+            (36, 64, 127),
+            (54, 95, 161),
+            (115, 145, 186),
+            (12, 49, 81),
+        ],
+        "보라색": [
+            (128, 0, 128),
+            (100, 0, 100),
+            (41, 15, 87),
+            (158, 145, 197),
+            (143, 72, 173),
+            (187, 125, 192),
+            (103, 7, 142),
+            (123, 115, 161),
+        ],
     }
 
-    min_distance = float("inf")
+    input_h, input_s, input_v = rgb_to_hsv(*rgb)
+    min_diff = float("inf")
     closest_color = None
 
-    r, g, b = rgb
+    for color_name, color_list in rainbow_colors.items():
+        for color in color_list:
+            h, s, v = rgb_to_hsv(*color)
+            # HSV 공간에서의 거리 계산 (색상에 가중치 부여)
+            h_diff = min(abs(h - input_h), 360 - abs(h - input_h))
+            s_diff = abs(s - input_s)
+            v_diff = abs(v - input_v)
 
-    for color_name, color_ranges in rainbow_colors.items():
-        for color_value in color_ranges:
-            # RGB 색상 거리 계산 (가중치 적용)
-            r_mean = (r + color_value[0]) / 2
-            r_diff = r - color_value[0]
-            g_diff = g - color_value[1]
-            b_diff = b - color_value[2]
+            # 색상(H)에 더 큰 가중치 부여
+            total_diff = (h_diff * 2) + (s_diff * 0.5) + (v_diff * 0.3)
 
-            # 인간의 색상 인식을 고려한 가중치 적용
-            distance = (
-                (2 + r_mean / 256) * r_diff**2
-                + 4 * g_diff**2
-                + (2 + (255 - r_mean) / 256) * b_diff**2
-            )
-
-            if distance < min_distance:
-                min_distance = distance
+            if total_diff < min_diff:
+                min_diff = total_diff
                 closest_color = color_name
 
     return closest_color
