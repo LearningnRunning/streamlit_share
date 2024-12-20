@@ -8,23 +8,42 @@ from rembg import remove
 
 
 def get_closest_rainbow_color(rgb):
-    # 무지개 색상 정의 (RGB)
+    # 무지개 색상 정의 (RGB) - 색상 범위 수정
     rainbow_colors = {
-        "빨간색": (255, 0, 0),  # Red
-        "주황색": (255, 165, 0),  # Orange
-        "노란색": (255, 255, 0),  # Yellow
-        "초록색": (0, 128, 0),  # Green
-        "파랑색": (0, 0, 255),  # Blue
-        "남색": (0, 0, 128),  # Indigo
-        "보라색": (128, 0, 128),  # Violet
+        "빨간색": [(255, 0, 0), (180, 0, 0)],  # 빨간색 계열
+        "주황색": [(255, 165, 0), (255, 140, 0)],  # 주황색 계열
+        "노란색": [(255, 255, 0), (142, 122, 35)],  # 노란색 계열
+        "초록색": [(0, 255, 0), (0, 180, 0)],  # 초록색 계열
+        "파란색": [(0, 0, 255), (0, 0, 180)],  # 파란색 계열
+        "남색": [(75, 0, 130), (60, 0, 110)],  # 남색 계열
+        "보라색": [(128, 0, 128), (100, 0, 100)],  # 보라색 계열
     }
 
-    # KDTree를 사용하여 가장 가까운 무지개 색 찾기
-    colors_array = np.array(list(rainbow_colors.values()))
-    tree = KDTree(colors_array)
-    distance, index = tree.query(rgb)
+    min_distance = float("inf")
+    closest_color = None
 
-    return list(rainbow_colors.keys())[index]
+    r, g, b = rgb
+
+    for color_name, color_ranges in rainbow_colors.items():
+        for color_value in color_ranges:
+            # RGB 색상 거리 계산 (가중치 적용)
+            r_mean = (r + color_value[0]) / 2
+            r_diff = r - color_value[0]
+            g_diff = g - color_value[1]
+            b_diff = b - color_value[2]
+
+            # 인간의 색상 인식을 고려한 가중치 적용
+            distance = (
+                (2 + r_mean / 256) * r_diff**2
+                + 4 * g_diff**2
+                + (2 + (255 - r_mean) / 256) * b_diff**2
+            )
+
+            if distance < min_distance:
+                min_distance = distance
+                closest_color = color_name
+
+    return closest_color
 
 
 def process_image(input_image):
