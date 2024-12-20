@@ -193,11 +193,11 @@ def main():
                 col1, col2 = st.columns(2)
                 with col1:
                     st.subheader("원본 이미지")
-                    st.image(input_image, use_container_with=True)
+                    st.image(input_image, use_column_width=True)
 
                 with col2:
                     st.subheader("배경 제거")
-                    st.image(processed_image, use_container_with=True)
+                    st.image(processed_image, use_column_width=True)
 
                 # 색상 추출
                 try:
