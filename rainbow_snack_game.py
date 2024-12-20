@@ -123,17 +123,53 @@ def get_closest_rainbow_color(rgb):
     return closest_color
 
 
+def resize_image(image, target_size=512):
+    # PIL Image로 변환
+    if isinstance(image, bytes):
+        img = Image.open(io.BytesIO(image))
+    else:
+        img = Image.fromarray(image)
+
+    # 현재 크기
+    width, height = img.size
+
+    # 리사이징 비율 계산
+    ratio = min(target_size / width, target_size / height)
+    new_size = (int(width * ratio), int(height * ratio))
+
+    # 리사이징
+    resized_img = img.resize(new_size, Image.Resampling.LANCZOS)
+
+    return resized_img
+
+
 def process_image(input_image):
     try:
+        # 이미지 리사이징
+        resized_image = resize_image(input_image)
+
+        # 리사이즈된 이미지를 bytes로 변환
+        img_byte_arr = io.BytesIO()
+        resized_image.save(
+            img_byte_arr, format=resized_image.format if resized_image.format else "PNG"
+        )
+        img_byte_arr = img_byte_arr.getvalue()
+
         # 배경 제거
-        output_image = remove(input_image)
+        output_image = remove(img_byte_arr)
         return output_image
     except Exception as e:
         st.error(f"이미지 처리 중 오류가 발생했습니다: {str(e)}")
         return None
 
 
+st.set_page_config(
+    page_title="무지개판결기🌈", page_icon="./data/rainbow_icon_125.png", layout="wide"
+)
+
+
 def main():
+    st.image(Image.open("./data/rainbow_icon.png"))
     st.title("무지개 과자 게임🌈🍪🧀🍫🍭")
 
     # 파일 업로더 추가
@@ -204,7 +240,7 @@ def main():
                         # 결과 표시
                         st.markdown("---")
                         st.subheader("최종 분석 결과 ✨")
-                        st.write(f"이 과자의 대표 색은 {closest_rainbow}입니다!")
+                        st.write(f"이 과자의 대표 색은 **{closest_rainbow}**에 가깝습니다!")
 
                         # 대표 색상 미리보기
                         st.markdown(
