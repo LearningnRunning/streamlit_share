@@ -7,3 +7,4 @@ scipy
 rembg
 opencv-python
 gensim
+openpyxl
