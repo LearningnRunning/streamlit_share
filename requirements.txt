@@ -6,3 +6,4 @@ onnxruntime
 scipy
 rembg
 opencv-python
+gensim
