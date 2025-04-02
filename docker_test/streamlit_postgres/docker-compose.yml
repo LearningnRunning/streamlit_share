@@ -1,0 +1,36 @@
+version: '3'
+
+services:
+  postgres:
+    image: postgres:latest
+    container_name: postgres_naver_lab
+    environment:
+      POSTGRES_USER: a1_poke
+      POSTGRES_PASSWORD: a1_poke
+      POSTGRES_DB: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./postgres/init.sql:/docker-entrypoint-initdb.d/init.sql
+      - ./data:/data
+    networks:
+      - app-network
+
+  streamlit:
+    build:
+      context: ./streamlit
+    container_name: streamlit_app
+    depends_on:
+      - postgres
+    ports:
+      - "8501:8501"
+    networks:
+      - app-network
+
+networks:
+  app-network:
+    driver: bridge
+
+volumes:
+  postgres_data:
