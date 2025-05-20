@@ -2,7 +2,9 @@
 # 실행:  streamlit run app.py
 import datetime
 import io
+import subprocess
 import tempfile
+import uuid
 import zipfile
 from pathlib import Path
 
@@ -281,6 +283,18 @@ def get_video_thumb(file, w, h, mode="contain"):
         return Image.new("RGB", (w, h), "black")
 
 
+def sanitize_filename(original_filename):
+    """안전한 파일명 생성
+    - UUID와 타임스탬프 조합으로 고유한 파일명 생성
+    - 원본 확장자 유지
+    """
+    # 확장자 추출
+    ext = Path(original_filename).suffix
+    # 안전한 파일명 생성 (UUID + 타임스탬프)
+    safe_name = f"{uuid.uuid4().hex}_{int(datetime.datetime.now().timestamp())}{ext}"
+    return safe_name
+
+
 def make_collage(
     files, layout_key, canvas_w=1080, canvas_h=1080, resize_mode="contain"
 ):
@@ -338,8 +352,11 @@ def make_collage_video(
             w1 = w2 = canvas_w
             pos = [(0, 0), (0, h1)]
 
-        # 비디오 파일 처리를 위한 임시 파일 생성
-        temp_output = tempfile.NamedTemporaryFile(delete=False, suffix=".mp4")
+        # 비디오 파일 처리를 위한 임시 파일 생성 (안전한 파일명 사용)
+        safe_output_name = sanitize_filename("output.mp4")
+        temp_output = tempfile.NamedTemporaryFile(
+            delete=False, suffix=f"_{safe_output_name}"
+        )
         output_path = temp_output.name
 
         # macOS에서는 'avc1' 코덱 사용
@@ -365,8 +382,11 @@ def make_collage_video(
         for file, (w, h) in zip(files, sizes):
             try:
                 if file.type.startswith("video"):
-                    # 비디오 파일 임시 저장
-                    temp = tempfile.NamedTemporaryFile(delete=False, suffix=".mp4")
+                    # 비디오 파일 임시 저장 (안전한 파일명 사용)
+                    safe_name = sanitize_filename(file.name)
+                    temp = tempfile.NamedTemporaryFile(
+                        delete=False, suffix=f"_{safe_name}"
+                    )
                     temp.write(file.read())
                     temp.close()
 
@@ -440,9 +460,9 @@ def make_collage_video(
         for vid_data in video_captures:
             vid_data["capture"].release()
 
-        # FFmpeg로 웹 호환 포맷으로 변환
-        web_compatible_output = output_path.replace(".mp4", "_web.mp4")
-        import subprocess
+        # FFmpeg로 웹 호환 포맷으로 변환 (안전한 파일명 사용)
+        safe_web_output = sanitize_filename("output_web.mp4")
+        web_compatible_output = output_path.replace(".mp4", f"_{safe_web_output}")
 
         try:
             subprocess.run(
