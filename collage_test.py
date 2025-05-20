@@ -230,16 +230,34 @@ if collage_mode:
 
 # ─────────────────────────────────────────
 # (C) 업로드 영역 수정 – "최대 2개"
-upload_help = "이미지 2개 / 이미지+동영상 1개씩 (최대 2개)"
+upload_help = """이미지 2개 / 이미지+동영상 1개씩 (최대 2개)
+- 파일 크기 제한: 200MB 이하
+- 지원 형식: JPG, PNG, MP4, MOV"""
+
 uploaded = st.file_uploader(
     "🔽 콜라주할 소재를 업로드 해주세요.",
     type=["jpg", "jpeg", "png", "mp4", "mov"],
     accept_multiple_files=True,
     help=upload_help,
 )
-if uploaded and len(uploaded) > 2:
-    st.warning("2개까지만 업로드 가능합니다.")
-    uploaded = uploaded[:2]
+
+if uploaded:
+    # 파일 크기 체크 (200MB = 200 * 1024 * 1024 bytes)
+    MAX_SIZE = 200 * 1024 * 1024
+    oversized_files = [f.name for f in uploaded if f.size > MAX_SIZE]
+
+    if oversized_files:
+        st.error(f"""
+        다음 파일이 크기 제한(200MB)을 초과했습니다:
+        - {chr(10).join(oversized_files)}
+        
+        파일 크기를 줄여서 다시 시도해주세요.
+        """)
+        st.stop()
+
+    if len(uploaded) > 2:
+        st.warning("2개까지만 업로드 가능합니다.")
+        uploaded = uploaded[:2]
 
 
 # ─────────────────────────────────────────
@@ -303,133 +321,157 @@ def make_collage(
 def make_collage_video(
     files, layout_key, canvas_w=1080, canvas_h=1080, fps=30, resize_mode="contain"
 ):
-    spec = COLLAGE_LAYOUTS[layout_key]
-    axis = spec["axis"]
-    r1, r2 = spec["ratio"]
-    total = r1 + r2
+    try:
+        spec = COLLAGE_LAYOUTS[layout_key]
+        axis = spec["axis"]
+        r1, r2 = spec["ratio"]
+        total = r1 + r2
 
-    if axis == "horizontal":
-        w1 = int(canvas_w * r1 / total)
-        w2 = canvas_w - w1
-        h1 = h2 = canvas_h
-        pos = [(0, 0), (w1, 0)]
-    else:  # vertical
-        h1 = int(canvas_h * r1 / total)
-        h2 = canvas_h - h1
-        w1 = w2 = canvas_w
-        pos = [(0, 0), (0, h1)]
+        if axis == "horizontal":
+            w1 = int(canvas_w * r1 / total)
+            w2 = canvas_w - w1
+            h1 = h2 = canvas_h
+            pos = [(0, 0), (w1, 0)]
+        else:  # vertical
+            h1 = int(canvas_h * r1 / total)
+            h2 = canvas_h - h1
+            w1 = w2 = canvas_w
+            pos = [(0, 0), (0, h1)]
 
-    # 비디오 파일 처리를 위한 임시 파일 생성
-    temp_output = tempfile.NamedTemporaryFile(delete=False, suffix=".mp4")
-    output_path = temp_output.name
+        # 비디오 파일 처리를 위한 임시 파일 생성
+        temp_output = tempfile.NamedTemporaryFile(delete=False, suffix=".mp4")
+        output_path = temp_output.name
 
-    # macOS에서는 'avc1' 코덱 사용
-    fourcc = cv2.VideoWriter_fourcc(*"avc1")
-    out = cv2.VideoWriter(output_path, fourcc, fps, (canvas_w, canvas_h))
-
-    if not out.isOpened():
-        # 'avc1'이 실패하면 'mp4v' 시도
-        out.release()
-        fourcc = cv2.VideoWriter_fourcc(*"mp4v")
+        # macOS에서는 'avc1' 코덱 사용
+        fourcc = cv2.VideoWriter_fourcc(*"avc1")
         out = cv2.VideoWriter(output_path, fourcc, fps, (canvas_w, canvas_h))
 
         if not out.isOpened():
-            st.error("비디오 작성기를 초기화할 수 없습니다.")
+            # 'avc1'이 실패하면 'mp4v' 시도
+            out.release()
+            fourcc = cv2.VideoWriter_fourcc(*"mp4v")
+            out = cv2.VideoWriter(output_path, fourcc, fps, (canvas_w, canvas_h))
+
+            if not out.isOpened():
+                st.error("비디오 작성기를 초기화할 수 없습니다.")
+                return None
+
+        # 비디오 프레임 또는 이미지 준비
+        video_captures = []
+        static_images = []
+        sizes = [(w1, h1), (w2, h2)]
+
+        max_frames = 0
+        for file, (w, h) in zip(files, sizes):
+            try:
+                if file.type.startswith("video"):
+                    # 비디오 파일 임시 저장
+                    temp = tempfile.NamedTemporaryFile(delete=False, suffix=".mp4")
+                    temp.write(file.read())
+                    temp.close()
+
+                    cap = cv2.VideoCapture(temp.name)
+                    if not cap.isOpened():
+                        st.error(f"비디오 파일을 열 수 없습니다: {file.name}")
+                        continue
+
+                    frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+                    max_frames = max(max_frames, frames)
+                    video_captures.append({
+                        "capture": cap,
+                        "size": (w, h),
+                        "position": pos[len(static_images) + len(video_captures)],
+                    })
+                else:
+                    # 이미지 파일 처리
+                    img = Image.open(file).convert("RGB")
+                    img = resize_with_padding(img, w, h, resize_mode)
+                    img = cv2.cvtColor(np.array(img), cv2.COLOR_RGB2BGR)
+                    static_images.append({
+                        "image": img,
+                        "position": pos[len(static_images)],
+                    })
+            except Exception as e:
+                st.error(f"파일 처리 중 오류 발생: {file.name}\n{str(e)}")
+                continue
+
+        if not video_captures and not static_images:
+            st.error("처리 가능한 파일이 없습니다.")
             return None
 
-    # 비디오 프레임 또는 이미지 준비
-    video_captures = []
-    static_images = []
-    sizes = [(w1, h1), (w2, h2)]
+        # 최소 프레임 수 설정
+        if max_frames == 0:
+            max_frames = fps * 5  # 정적 이미지만 있는 경우 5초
 
-    max_frames = 0
-    for file, (w, h) in zip(files, sizes):
-        if file.type.startswith("video"):
-            # 비디오 파일 임시 저장
-            temp = tempfile.NamedTemporaryFile(delete=False, suffix=".mp4")
-            temp.write(file.read())
-            temp.close()
+        # 프레임 생성 및 저장
+        for frame_idx in range(max_frames):
+            try:
+                # 빈 캔버스 생성
+                canvas = np.zeros((canvas_h, canvas_w, 3), dtype=np.uint8)
 
-            cap = cv2.VideoCapture(temp.name)
-            frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
-            max_frames = max(max_frames, frames)
-            video_captures.append({
-                "capture": cap,
-                "size": (w, h),
-                "position": pos[len(static_images) + len(video_captures)],
-            })
-        else:
-            # 이미지 파일 처리
-            img = Image.open(file).convert("RGB")
-            img = resize_with_padding(img, w, h, resize_mode)
-            img = cv2.cvtColor(np.array(img), cv2.COLOR_RGB2BGR)
-            static_images.append({"image": img, "position": pos[len(static_images)]})
+                # 정적 이미지 추가
+                for img_data in static_images:
+                    x, y = img_data["position"]
+                    h, w = img_data["image"].shape[:2]
+                    canvas[y : y + h, x : x + w] = img_data["image"]
 
-    # 최소 프레임 수 설정
-    if max_frames == 0:
-        max_frames = fps * 5  # 정적 이미지만 있는 경우 5초
+                # 비디오 프레임 추가
+                for vid_data in video_captures:
+                    ret, frame = vid_data["capture"].read()
+                    if not ret:  # 비디오 끝에 도달하면 처음으로 되감기
+                        vid_data["capture"].set(cv2.CAP_PROP_POS_FRAMES, 0)
+                        ret, frame = vid_data["capture"].read()
 
-    # 프레임 생성 및 저장
-    for frame_idx in range(max_frames):
-        # 빈 캔버스 생성
-        canvas = np.zeros((canvas_h, canvas_w, 3), dtype=np.uint8)
+                    if ret:
+                        frame = resize_with_padding(
+                            frame, vid_data["size"][0], vid_data["size"][1], resize_mode
+                        )
+                        x, y = vid_data["position"]
+                        h, w = frame.shape[:2]
+                        canvas[y : y + h, x : x + w] = frame
 
-        # 정적 이미지 추가
-        for img_data in static_images:
-            x, y = img_data["position"]
-            h, w = img_data["image"].shape[:2]
-            canvas[y : y + h, x : x + w] = img_data["image"]
+                out.write(canvas)
+            except Exception as e:
+                st.error(f"프레임 처리 중 오류 발생: {str(e)}")
+                continue
 
-        # 비디오 프레임 추가
+        # 리소스 정리
+        out.release()
         for vid_data in video_captures:
-            ret, frame = vid_data["capture"].read()
-            if not ret:  # 비디오 끝에 도달하면 처음으로 되감기
-                vid_data["capture"].set(cv2.CAP_PROP_POS_FRAMES, 0)
-                ret, frame = vid_data["capture"].read()
+            vid_data["capture"].release()
 
-            if ret:
-                frame = resize_with_padding(
-                    frame, vid_data["size"][0], vid_data["size"][1], resize_mode
-                )
-                x, y = vid_data["position"]
-                h, w = frame.shape[:2]
-                canvas[y : y + h, x : x + w] = frame
+        # FFmpeg로 웹 호환 포맷으로 변환
+        web_compatible_output = output_path.replace(".mp4", "_web.mp4")
+        import subprocess
 
-        out.write(canvas)
-
-    # 리소스 정리
-    out.release()
-    for vid_data in video_captures:
-        vid_data["capture"].release()
-
-    # FFmpeg로 웹 호환 포맷으로 변환
-    web_compatible_output = output_path.replace(".mp4", "_web.mp4")
-    import subprocess
-
-    try:
-        subprocess.run(
-            [
-                "ffmpeg",
-                "-i",
-                output_path,
-                "-c:v",
-                "libx264",
-                "-preset",
-                "fast",
-                "-pix_fmt",
-                "yuv420p",
-                "-y",
-                web_compatible_output,
-            ],
-            check=True,
-            capture_output=True,
-        )
-        return web_compatible_output
-    except (subprocess.CalledProcessError, FileNotFoundError):
-        st.warning(
-            "FFmpeg를 찾을 수 없어 비디오 변환이 실패했습니다. 다운로드는 가능하지만 미리보기는 작동하지 않을 수 있습니다."
-        )
-        return output_path
+        try:
+            subprocess.run(
+                [
+                    "ffmpeg",
+                    "-i",
+                    output_path,
+                    "-c:v",
+                    "libx264",
+                    "-preset",
+                    "fast",
+                    "-pix_fmt",
+                    "yuv420p",
+                    "-y",
+                    web_compatible_output,
+                ],
+                check=True,
+                capture_output=True,
+            )
+            return web_compatible_output
+        except (subprocess.CalledProcessError, FileNotFoundError) as e:
+            st.warning(
+                f"""FFmpeg 처리 중 오류가 발생했습니다: {str(e)}
+                다운로드는 가능하지만 미리보기는 작동하지 않을 수 있습니다."""
+            )
+            return output_path
+    except Exception as e:
+        st.error(f"콜라주 생성 중 오류가 발생했습니다: {str(e)}")
+        return None
 
 
 def is_any_video(files):
