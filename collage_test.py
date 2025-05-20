@@ -352,22 +352,19 @@ def make_collage_video(
             w1 = w2 = canvas_w
             pos = [(0, 0), (0, h1)]
 
-        # 비디오 파일 처리를 위한 임시 파일 생성 (안전한 파일명 사용)
-        safe_output_name = sanitize_filename("output.mp4")
-        temp_output = tempfile.NamedTemporaryFile(
-            delete=False, suffix=f"_{safe_output_name}"
-        )
-        output_path = temp_output.name
+        # 안전한 임시 파일 생성
+        temp_dir = tempfile.mkdtemp()
+        output_path = Path(temp_dir) / "output.mp4"
 
-        # macOS에서는 'avc1' 코덱 사용
-        fourcc = cv2.VideoWriter_fourcc(*"avc1")
-        out = cv2.VideoWriter(output_path, fourcc, fps, (canvas_w, canvas_h))
+        # 'mp4v' 코덱을 우선 사용
+        fourcc = cv2.VideoWriter_fourcc(*"mp4v")
+        out = cv2.VideoWriter(str(output_path), fourcc, fps, (canvas_w, canvas_h))
 
         if not out.isOpened():
-            # 'avc1'이 실패하면 'mp4v' 시도
+            # 'mp4v'가 실패하면 'avc1' 시도
             out.release()
-            fourcc = cv2.VideoWriter_fourcc(*"mp4v")
-            out = cv2.VideoWriter(output_path, fourcc, fps, (canvas_w, canvas_h))
+            fourcc = cv2.VideoWriter_fourcc(*"avc1")
+            out = cv2.VideoWriter(str(output_path), fourcc, fps, (canvas_w, canvas_h))
 
             if not out.isOpened():
                 st.error("비디오 작성기를 초기화할 수 없습니다.")
@@ -382,15 +379,11 @@ def make_collage_video(
         for file, (w, h) in zip(files, sizes):
             try:
                 if file.type.startswith("video"):
-                    # 비디오 파일 임시 저장 (안전한 파일명 사용)
-                    safe_name = sanitize_filename(file.name)
-                    temp = tempfile.NamedTemporaryFile(
-                        delete=False, suffix=f"_{safe_name}"
-                    )
-                    temp.write(file.read())
-                    temp.close()
+                    # 비디오 파일 임시 저장
+                    temp_video = Path(temp_dir) / f"video_{uuid.uuid4()}.mp4"
+                    temp_video.write_bytes(file.read())
 
-                    cap = cv2.VideoCapture(temp.name)
+                    cap = cv2.VideoCapture(str(temp_video))
                     if not cap.isOpened():
                         st.error(f"비디오 파일을 열 수 없습니다: {file.name}")
                         continue
@@ -401,6 +394,7 @@ def make_collage_video(
                         "capture": cap,
                         "size": (w, h),
                         "position": pos[len(static_images) + len(video_captures)],
+                        "temp_file": temp_video,
                     })
                 else:
                     # 이미지 파일 처리
@@ -426,8 +420,8 @@ def make_collage_video(
         # 프레임 생성 및 저장
         for frame_idx in range(max_frames):
             try:
-                # 빈 캔버스 생성
-                canvas = np.zeros((canvas_h, canvas_w, 3), dtype=np.uint8)
+                # 흰색 캔버스 생성
+                canvas = np.ones((canvas_h, canvas_w, 3), dtype=np.uint8) * 255
 
                 # 정적 이미지 추가
                 for img_data in static_images:
@@ -452,24 +446,24 @@ def make_collage_video(
 
                 out.write(canvas)
             except Exception as e:
-                st.error(f"프레임 처리 중 오류 발생: {str(e)}")
+                st.error(f"프레임 {frame_idx} 처리 중 오류 발생: {str(e)}")
                 continue
 
         # 리소스 정리
         out.release()
         for vid_data in video_captures:
             vid_data["capture"].release()
+            vid_data["temp_file"].unlink()  # 임시 파일 삭제
 
-        # FFmpeg로 웹 호환 포맷으로 변환 (안전한 파일명 사용)
-        safe_web_output = sanitize_filename("output_web.mp4")
-        web_compatible_output = output_path.replace(".mp4", f"_{safe_web_output}")
+        # FFmpeg로 웹 호환 포맷으로 변환
+        web_compatible_output = str(Path(temp_dir) / "output_web.mp4")
 
         try:
             subprocess.run(
                 [
                     "ffmpeg",
                     "-i",
-                    output_path,
+                    str(output_path),
                     "-c:v",
                     "libx264",
                     "-preset",
@@ -488,7 +482,7 @@ def make_collage_video(
                 f"""FFmpeg 처리 중 오류가 발생했습니다: {str(e)}
                 다운로드는 가능하지만 미리보기는 작동하지 않을 수 있습니다."""
             )
-            return output_path
+            return str(output_path)
     except Exception as e:
         st.error(f"콜라주 생성 중 오류가 발생했습니다: {str(e)}")
         return None
