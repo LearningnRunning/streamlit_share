@@ -4,6 +4,7 @@ import datetime
 import io
 import subprocess
 import tempfile
+import time
 import uuid
 import zipfile
 from pathlib import Path
@@ -500,10 +501,14 @@ if collage_mode and uploaded and 1 < len(uploaded) <= 2:
     canvas_h = spec["h"]
 
     if is_any_video(uploaded):
+        start_time = time.time()
         collage_video = make_collage_video(
             uploaded, collage_layout, canvas_w, canvas_h, resize_mode=resize_mode
         )
+        end_time = time.time()
         st.video(collage_video)
+
+        st.write(f"콜라주 생성 시간: {end_time - start_time:.2f}초")
 
         with open(collage_video, "rb") as f:
             st.download_button(
