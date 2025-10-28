@@ -179,7 +179,17 @@ df = pd.DataFrame(data_with_date, columns=["월", "구장", "팀1", "팀2", "날
 # -------------------------------
 # 2️⃣ 페이지 구성 및 스타일
 # -------------------------------
-st.set_page_config(page_title="⚽ 포항 구장 대진 현황", layout="wide", initial_sidebar_state="collapsed")
+st.set_page_config(
+    page_title="⚽ 포항 축구 대진표",
+    page_icon="⚽",
+    layout="wide",
+    initial_sidebar_state="collapsed",
+    menu_items={
+        'Get Help': None,
+        'Report a bug': None,
+        'About': "# 포항 축구 구장 대진표\n### 2026 시즌 전체 일정 관리 시스템\n모든 팀이 공정하게 경기를 치를 수 있도록 구성되었습니다."
+    }
+)
 
 # 커스텀 CSS
 st.markdown("""
@@ -273,7 +283,8 @@ st.markdown("""
 st.markdown("""
 <div class="main-header">
     <h1>⚽ 포항 축구 구장 대진표</h1>
-    <p style="font-size: 1.1rem; margin: 0;">2026 시즌 전체 일정 관리 시스템</p>
+    <p style="font-size: 1.1rem; margin: 0.5rem 0 0 0;">2026 시즌 전체 일정 관리 시스템</p>
+    <p style="font-size: 0.9rem; opacity: 0.9; margin: 0.5rem 0 0 0;">🏆 모두를 위한 공정한 대진표</p>
 </div>
 """, unsafe_allow_html=True)
 
@@ -377,7 +388,6 @@ with tab1:
                 <div class="team-group">
                     {team_html}
                 </div>
-                <p style="margin-top: 1rem; font-size: 1.1rem;">총 3경기 진행</p>
             </div>
             """, unsafe_allow_html=True)
             
@@ -600,6 +610,8 @@ with tab3:
 st.markdown("""
 ---
 <div style="text-align: center; color: #666; padding: 2rem;">
-    <p>⚽ 2026 포항 축구 구장 대진표 | 데이터 기반 일정 관리</p>
+    <p style="font-size: 1rem; margin-bottom: 0.5rem;">⚽ 2026 포항 축구 구장 대진표</p>
+    <p style="font-size: 0.8rem; opacity: 0.7;">데이터 기반 일정 관리 시스템 | 모든 팀을 위한 공정한 대진표</p>
+    <p style="font-size: 0.7rem; opacity: 0.5; margin-top: 1rem;">🏆 Fair Play, Fair Game</p>
 </div>
 """, unsafe_allow_html=True)
