@@ -97,6 +97,27 @@ schedule = {
 def field_map(field_char):
     return {'A구장': 1, 'B구장': 2, 'C구장': 3}[field_char]
 
+# 팀 이름 매핑
+TEAM_NAMES = {
+    1: '포항OB',
+    2: '동부',
+    3: '장량',
+    4: '오천',
+    5: '포유',
+    6: '유강',
+    7: '백호',
+    8: '육사(64)',
+    9: '흑룡',
+    10: '청호'
+}
+
+# 팀 이름으로 번호 찾기 (역매핑)
+TEAM_NUMBERS = {name: num for num, name in TEAM_NAMES.items()}
+
+def get_team_name(team_num):
+    """팀 번호를 팀 이름으로 변환"""
+    return TEAM_NAMES.get(team_num, f'팀 {team_num}')
+
 # 월 키 변환 함수 (2026-01 -> 1월)
 def month_key_to_display(month_key):
     month_num = int(month_key.split('-')[1])
@@ -260,15 +281,17 @@ st.markdown("""
     .team-circle {
         background: rgba(255,255,255,0.95);
         color: #2e7d32;
-        width: 50px;
-        height: 50px;
-        border-radius: 50%;
+        min-width: 60px;
+        padding: 0.5rem 0.8rem;
+        height: auto;
+        border-radius: 20px;
         display: inline-flex;
         align-items: center;
         justify-content: center;
         font-weight: bold;
-        font-size: 1.2rem;
+        font-size: 0.9rem;
         border: 2px solid rgba(255,255,255,0.8);
+        white-space: nowrap;
     }
     .metric-card {
         background: linear-gradient(135deg, #4caf50 0%, #66bb6a 100%);
@@ -313,7 +336,7 @@ for month_key, month_data in schedule.items():
 stats_data = []
 for team in range(1, 11):
     stats_data.append({
-        '팀': f'팀 {team}',
+        '팀': get_team_name(team),
         'A구장': team_field_stats[team]['A구장'],
         'B구장': team_field_stats[team]['B구장'],
         'C구장': team_field_stats[team]['C구장'],
@@ -342,9 +365,10 @@ with tab1:
     # 쉬는 팀 배너
     if selected_month in rest_teams and rest_teams[selected_month]:
         rest_team = rest_teams[selected_month]
+        rest_team_name = get_team_name(rest_team)
         st.markdown(f"""
         <div class="rest-banner">
-            ⏸️ 이번 주 쉬는 팀: <strong>팀 {rest_team}</strong>
+            ⏸️ 이번 주 쉬는 팀: <strong>{rest_team_name}</strong>
         </div>
         """, unsafe_allow_html=True)
     
@@ -382,7 +406,7 @@ with tab1:
             """, unsafe_allow_html=True)
             
             # 구장 카드 표시 (팀 정보만)
-            team_html = ''.join([f'<div class="team-circle">{t}</div>' for t in teams_sorted])
+            team_html = ''.join([f'<div class="team-circle" title="{get_team_name(t)}">{get_team_name(t)}</div>' for t in teams_sorted])
             st.markdown(f"""
             <div class="field-card">
                 <div class="team-group">
@@ -399,9 +423,11 @@ with tab1:
 with tab2:
     st.subheader("👥 팀별 경기 현황")
     
-    # 팀 선택
-    team_list = sorted(set(df["팀1"]).union(df["팀2"]))
-    selected_team = st.selectbox("👤 팀 선택", options=team_list)
+    # 팀 선택 (팀 이름으로 표시)
+    team_numbers = sorted(set(df["팀1"]).union(df["팀2"]))
+    team_options = [get_team_name(team) for team in team_numbers]
+    selected_team_name = st.selectbox("👤 팀 선택", options=team_options)
+    selected_team = TEAM_NUMBERS.get(selected_team_name)
     
     if selected_team:
         # 팀별 일정 생성
@@ -434,7 +460,7 @@ with tab2:
                             '날짜': get_match_date(2026, month_display),
                             '요일': get_weekday(get_match_date(2026, month_display)),
                             '구장': f'{field_name}구장 ({field_num}구장)',
-                            '함께하는 팀들': ', '.join([f'팀{t}' for t in other_teams]),
+                            '함께하는 팀들': ', '.join([get_team_name(t) for t in other_teams]),
                             '상태': '경기'
                         })
                         break  # 한 달에는 하나의 구장에만 속함
@@ -444,7 +470,7 @@ with tab2:
             schedule_df = pd.DataFrame(team_schedule)
             
             # 휴식인 행은 별도 스타일 적용
-            st.markdown(f"### 📅 팀 {selected_team} 전체 일정 (2026 시즌)")
+            st.markdown(f"### 📅 {selected_team_name} 전체 일정 (2026 시즌)")
             st.markdown(f"총 {len(team_schedule)}개월 중 경기 {len([s for s in team_schedule if s['상태'] == '경기'])}개월, 휴식 {len([s for s in team_schedule if s['상태'] == '휴식'])}개월")
             
             # 날짜와 요일을 함께 표시
@@ -463,7 +489,7 @@ with tab2:
             styled_df = display_df.style.apply(highlight_rest, axis=1)
             st.dataframe(styled_df, use_container_width=True, hide_index=True)
         else:
-            st.warning(f"❌ 팀 {selected_team}의 경기 데이터가 없습니다.")
+            st.warning(f"❌ {selected_team_name}의 경기 데이터가 없습니다.")
 
 # -------------------------------
 # 6️⃣ 탭 3: 공정성 통계
